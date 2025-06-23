@@ -7,7 +7,8 @@ const ctx = canvas.getContext('2d');
 
 // Conexão com o servidor Socket.IO
 // LEMBRE-SE DE SUBSTITUIR ESTE URL PELO SEU URL DO RENDER/RAILWAY!
-const SERVER_URL = 'COLE_O_URL_DO_RENDER_AQUI'; // EX: 'https://flappy-bird-server.onrender.com'
+// ESTA É A LINHA QUE VOCÊ PRECISA ATUALIZAR COM O URL REAL DO SEU SERVIDOR RENDER
+const SERVER_URL = 'https://flappy-0bd3.onrender.com'; // <--- SUBSTITUA ESTE VALOR PELO SEU URL REAL DO RENDER!
 const socket = io(SERVER_URL);
 
 // --- Configurações do Jogo (Cliente - apenas para desenho) ---
