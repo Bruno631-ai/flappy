@@ -1,12 +1,16 @@
-// Acessando o elemento canvas no HTML
+// Acessando os elementos HTML
+const startScreen = document.getElementById('startScreen');
+const playerNameInput = document.getElementById('playerNameInput');
+const startButton = document.getElementById('startButton');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Conexão com o servidor Socket.IO
-const socket = io();
+// LEMBRE-SE DE SUBSTITUIR ESTE URL PELO SEU URL DO RENDER/RAILWAY!
+const SERVER_URL = 'COLE_O_URL_DO_RENDER_AQUI'; // EX: 'https://flappy-bird-server.onrender.com'
+const socket = io(SERVER_URL);
 
 // --- Configurações do Jogo (Cliente - apenas para desenho) ---
-// Estas constantes devem ser as mesmas do servidor para o desenho ficar correto
 const GAME_WIDTH = canvas.width;
 const GAME_HEIGHT = canvas.height;
 const GROUND_HEIGHT = 50;
@@ -21,6 +25,7 @@ let currentGameState = {
 };
 
 let myId = null; // Para guardar o ID do meu próprio jogador
+let myName = 'Jogador'; // Nome padrão, será atualizado pelo input
 
 // --- Elementos HTML para a pontuação e jogadores ---
 const scoreDisplay = document.createElement('div');
@@ -46,20 +51,43 @@ playerListDisplay.style.borderRadius = '5px';
 document.body.appendChild(playerListDisplay);
 
 
+// --- Lógica da Tela Inicial ---
+startButton.addEventListener('click', () => {
+    const name = playerNameInput.value.trim();
+    if (name) {
+        myName = name;
+        startScreen.style.display = 'none'; // Esconde a tela inicial
+        canvas.style.display = 'block'; // Mostra o canvas do jogo
+        // Agora que o nome foi inserido, enviamos o evento 'joinGame'
+        const roomId = 'salaDoFlappy';
+        socket.emit('joinGame', { roomId: roomId, playerName: myName });
+    } else {
+        alert('Por favor, digite seu nome para iniciar o jogo!');
+        playerNameInput.focus();
+    }
+});
+
+// Permite iniciar o jogo pressionando Enter no campo de nome
+playerNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        startButton.click();
+    }
+});
+
+
 // --- Eventos do Socket.IO ---
 
 socket.on('connect', () => {
     console.log('Conectado ao servidor! Meu ID:', socket.id);
     myId = socket.id;
-
-    const roomId = 'salaDoFlappy'; // Você pode fazer uma interface para o usuário escolher depois.
-    socket.emit('joinGame', roomId); // Pede para entrar na sala
+    // Não enviamos mais o 'joinGame' imediatamente, só depois do botão iniciar
 });
 
 socket.on('roomFull', () => {
     alert('A sala de jogo está cheia (máximo de 4 jogadores). Tente novamente mais tarde.');
+    startScreen.style.display = 'flex'; // Mostra a tela inicial novamente
+    canvas.style.display = 'none'; // Esconde o canvas
     console.log('Sala cheia, não foi possível entrar.');
-    // Poderia redirecionar ou desabilitar o jogo aqui
 });
 
 // Este é o evento mais importante agora: o servidor envia o estado completo do jogo
@@ -67,20 +95,20 @@ socket.on('gameState', (gameState) => {
     currentGameState = gameState; // Atualiza o estado local com o que veio do servidor
     drawGame(); // Redesenha o jogo com o novo estado
     updateScoreDisplay(); // Atualiza a exibição da pontuação
+    updatePlayerListDisplay(); // Atualiza a lista de jogadores
 });
 
 socket.on('playerDied', (playerId) => {
-    console.log(`Jogador ${playerId} morreu!`);
+    console.log(`Jogador ${currentGameState.players[playerId]?.name || playerId} morreu!`);
     // Poderíamos tocar um som, mostrar uma animação, etc.
 });
 
 socket.on('updateScore', (data) => {
-    console.log(`Jogador ${data.id} fez ${data.score} pontos!`);
     // A pontuação já é atualizada pelo 'gameState', mas este evento pode ser útil para feedbacks instantâneos
 });
 
 socket.on('playerJoined', (playerData) => {
-    console.log('Novo jogador entrou:', playerData.id);
+    console.log('Novo jogador entrou:', playerData.name || playerData.id);
     // O gameState já trará o novo jogador, mas este evento pode ser útil para notificações
 });
 
@@ -89,14 +117,11 @@ socket.on('playerLeft', (playerId) => {
     // O gameState vai parar de enviar os dados dele, mas pode ser útil para notificações
 });
 
-socket.on('updatePlayersList', (playerCount) => {
-    console.log(`Total de jogadores na sala: ${playerCount}`);
-    updatePlayerListDisplay();
-});
-
 socket.on('gameOver', () => {
     alert('Fim de jogo! Todos os pássaros morreram.');
-    // Você pode adicionar um botão para reiniciar ou ir para o lobby
+    // Volta para a tela inicial
+    startScreen.style.display = 'flex';
+    canvas.style.display = 'none';
 });
 
 
@@ -134,6 +159,12 @@ function drawGame() {
             ctx.lineTo(bird.x, bird.y + BIRD_SIZE);
             ctx.stroke();
         }
+
+        // Desenhar o nome do jogador acima do pássaro
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(bird.name || 'Jogador', bird.x + BIRD_SIZE / 2, bird.y - 5);
     }
 }
 
@@ -157,7 +188,7 @@ function updatePlayerListDisplay() {
         const player = currentGameState.players[id];
         const status = player.alive ? 'Vivo' : 'Morto';
         const isMe = (id === myId) ? ' (Você)' : '';
-        playerListHtml += `<span style="color:${player.color};">${id.substring(0, 5)}...${isMe}</span> - ${status} - Pontos: ${player.score}<br>`;
+        playerListHtml += `<span style="color:${player.color};">${player.name || id.substring(0, 5)}...${isMe}</span> - ${status} - Pontos: ${player.score}<br>`;
     }
     playerListDisplay.innerHTML = playerListHtml;
 }
@@ -165,9 +196,13 @@ function updatePlayerListDisplay() {
 
 // --- Evento de Clique para Fazer o Pássaro Pular ---
 document.addEventListener('click', () => {
-    // Apenas envia o comando de pulo para o servidor, o servidor decide se ele pode pular
-    socket.emit('jump');
+    // Apenas envia o comando de pulo para o servidor se o jogo estiver visível
+    if (canvas.style.display === 'block') {
+        socket.emit('jump');
+    }
 });
 
-// Não precisamos mais do gameLoop no cliente, pois o servidor envia o estado a cada quadro.
-// drawGame() será chamada sempre que um gameState for recebido.
+// Inicialmente esconde o canvas e mostra a tela inicial
+canvas.style.display = 'none';
+startScreen.style.display = 'flex';
+playerNameInput.focus(); // Coloca o foco no campo de nome

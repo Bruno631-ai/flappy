@@ -25,12 +25,16 @@ const PIPE_SPEED = 3; // Velocidade de movimento dos canos
 const PIPE_SPAWN_INTERVAL = 2000; // Tempo em ms para gerar um novo par de canos
 
 // --- Estado do Jogo Global (no Servidor) ---
-const gameRooms = {}; // { 'roomId': { players: { 'socketId': { x, y, velocity, score, color, alive }, ... }, pipes: [], gameRunning: boolean, lastPipeSpawn: timestamp, gameInterval: null } }
+const gameRooms = {}; // { 'roomId': { players: { 'socketId': { x, y, velocity, score, color, alive, name }, ... }, pipes: [], gameRunning: boolean, lastPipeSpawn: timestamp, gameInterval: null } }
 
 io.on('connection', (socket) => {
     console.log(`Um novo jogador se conectou: ${socket.id}`);
 
-    socket.on('joinGame', (roomId) => {
+    // Alteração A: Agora 'joinGame' espera um objeto 'data' com roomId e playerName
+    socket.on('joinGame', (data) => {
+        const roomId = data.roomId;
+        const playerName = data.playerName || `Jogador ${socket.id.substring(0, 4)}`; // Pega o nome ou um padrão se não for fornecido
+
         // Limita a 4 jogadores por sala
         if (!gameRooms[roomId]) {
             gameRooms[roomId] = {
@@ -53,21 +57,25 @@ io.on('connection', (socket) => {
         console.log(`Jogador ${socket.id} entrou na sala: ${roomId}`);
 
         // Inicializa o estado do pássaro para este novo jogador
+        // Alteração B: Adicionado 'name: playerName'
         gameRooms[roomId].players[socket.id] = {
             x: 50 + (currentPlayersInRoom * 50), // Posiciona os pássaros lado a lado no início
             y: GAME_HEIGHT / 2,
             velocity: 0,
             score: 0,
             color: getRandomColor(),
-            alive: true // Indica se o pássaro está vivo
+            alive: true, // Indica se o pássaro está vivo
+            name: playerName // <<< ADICIONADO: Nome do jogador
         };
 
         // Avisa a todos na sala sobre o novo jogador e o estado atualizado
+        // Alteração C: Adicionado 'name' ao playerJoined emit
         io.to(roomId).emit('playerJoined', {
             id: socket.id,
             x: gameRooms[roomId].players[socket.id].x,
             y: gameRooms[roomId].players[socket.id].y,
-            color: gameRooms[roomId].players[socket.id].color
+            color: gameRooms[roomId].players[socket.id].color,
+            name: gameRooms[roomId].players[socket.id].name // <<< ADICIONADO: Nome do jogador
         });
 
         // Envia o estado completo de todos os jogadores e canos na sala para o novo jogador

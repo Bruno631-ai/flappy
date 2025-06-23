@@ -3,14 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flappy Bird Multiplayer</title>
+    <title>Flappy Bird Multiplayer Online</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos adicionais para a tela inicial */
+        #startButton, #playerNameInput {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        #startButton {
+            background-color: #4CAF50; /* Verde */
+            color: white;
+        }
+        #startButton:hover {
+            background-color: #45a049;
+        }
+        #playerNameInput {
+            padding: 8px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            text-align: center;
+        }
+        #startScreen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* Ocupa a altura total da tela */
+            background-color: #87CEEB; /* Cor de fundo do céu */
+            color: white;
+            font-family: Arial, sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            position: absolute; /* Para ficar por cima do canvas */
+            width: 100%;
+            z-index: 10; /* Garante que fique acima do canvas */
+        }
+        #gameCanvas {
+            display: none; /* Esconde o canvas inicialmente */
+        }
+    </style>
 </head>
 <body>
-    <h1>Flappy Bird Multiplayer</h1>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="480"></canvas>
+    <div id="startScreen">
+        <h1>Flappy Bird Multiplayer</h1>
+        <p>Entre com seu nome para iniciar:</p>
+        <input type="text" id="playerNameInput" placeholder="Seu Nome" maxlength="15">
+        <button id="startButton">Iniciar Jogo</button>
     </div>
+
+    <canvas id="gameCanvas" width="800" height="480"></canvas>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="game.js"></script>
